@@ -70,11 +70,20 @@ export class ConnectorsService {
       }
 
       const conn = bySource.get(item.source);
+      const lastSyncedAt = conn?.lastSyncedAt ?? null;
       return {
         ...item,
         connected: !!conn?.enabled,
         accountLabel: conn?.accountLabel || '',
-        lastSyncedAt: conn?.lastSyncedAt ?? null,
+        lastSyncedAt,
+        // For extension sources: true once at least one ingest happened
+        receiving: item.mode === 'extension' ? !!lastSyncedAt : undefined,
+        statusMessage:
+          item.mode === 'extension'
+            ? lastSyncedAt
+              ? `Receiving events · last ${new Date(lastSyncedAt).toLocaleString()}`
+              : 'Waiting for extension ingest...'
+            : undefined,
       };
     });
   }
@@ -92,11 +101,19 @@ export class ConnectorsService {
       .findOne({ userId, source: this.asSource(source) })
       .exec();
     if (!conn) return { ...item, connected: false };
+    const lastSyncedAt = conn.lastSyncedAt ?? null;
     return {
       ...item,
       connected: true,
       accountLabel: conn.accountLabel,
-      lastSyncedAt: conn.lastSyncedAt,
+      lastSyncedAt,
+      receiving: item.mode === 'extension' ? !!lastSyncedAt : undefined,
+      statusMessage:
+        item.mode === 'extension'
+          ? lastSyncedAt
+            ? `Receiving events · last ${new Date(lastSyncedAt).toLocaleString()}`
+            : 'Waiting for extension ingest...'
+          : undefined,
     };
   }
 
@@ -257,12 +274,13 @@ export class ConnectorsService {
       else skipped++;
     }
 
-    // Mark extension connectors as connected on first ingest
+    // Mark extension connectors as connected + update last activity time
     if (['vscode', 'chrome', 'photos'].includes(dto.source)) {
       await this.upsertConnection(userId, dto.source, {
         accountLabel: `${dto.source} collector`,
         credentials: {},
         meta: { lastIngestAt: new Date().toISOString() },
+        touchSync: true,
       });
     }
 
@@ -322,6 +340,7 @@ export class ConnectorsService {
       accountLabel: string;
       credentials: StoredCredentials;
       meta: Record<string, unknown>;
+      touchSync?: boolean;
     },
   ) {
     const credentialsEnc =
@@ -331,16 +350,21 @@ export class ConnectorsService {
         ? this.encryptionService.encrypt(JSON.stringify(data.credentials))
         : null;
 
+    const update: Record<string, unknown> = {
+      userId,
+      source: this.asSource(source),
+      accountLabel: data.accountLabel,
+      credentialsEnc,
+      enabled: true,
+      meta: data.meta,
+    };
+    if (data.touchSync) {
+      update.lastSyncedAt = new Date();
+    }
+
     await this.connectionRepository.findOneAndUpdate(
       { userId, source: this.asSource(source) },
-      {
-        userId,
-        source: this.asSource(source),
-        accountLabel: data.accountLabel,
-        credentialsEnc,
-        enabled: true,
-        meta: data.meta,
-      },
+      update,
       { upsert: true, new: true },
     );
   }
