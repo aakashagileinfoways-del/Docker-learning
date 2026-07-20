@@ -125,7 +125,7 @@ export class EventService {
 
     return this.eventRepository
       .find(filter)
-      .sort({ occurredAt: -1 })
+      .sort({ occurredAt: -1, createdAt: -1 })
       .limit(500)
       .exec();
   }
@@ -149,7 +149,7 @@ export class EventService {
         userId,
         occurredAt: { $gte: effectiveFrom, $lte: to },
       })
-      .sort({ occurredAt: 1 })
+      .sort({ occurredAt: -1, createdAt: -1 })
       .exec();
   }
 

@@ -112,12 +112,22 @@ export class TimelineService {
     }
 
     const segments: TimelineSegment[] = [...byHour.entries()]
-      .sort(([a], [b]) => a - b)
+      .sort(([a], [b]) => b - a) // latest hour first
       .map(([hour, hourEvents]) => ({
         hour,
         label: formatLocalHourLabel(hour),
-        events: hourEvents,
+        // newest first within the hour
+        events: [...hourEvents].sort(
+          (x, y) =>
+            new Date(y.occurredAt).getTime() - new Date(x.occurredAt).getTime(),
+        ),
       }));
+
+    // Flat list also newest first
+    events = [...events].sort(
+      (a, b) =>
+        new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+    );
 
     const retention = await this.eventService.getRetentionMeta(userId);
 
