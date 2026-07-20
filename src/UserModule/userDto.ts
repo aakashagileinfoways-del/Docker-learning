@@ -1,13 +1,17 @@
-import { IsString, IsEmail, IsNotEmpty } from 'class-validator';
-// import { Transform } from 'class-transformer';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class UserDto {
-    @IsString()
-    name: string | undefined;
+  @IsString()
+  name!: string;
 
-    @IsEmail()
-    email: string | undefined;
+  @IsEmail()
+  email!: string;
 
-    @IsString()
-    password: string | undefined;
+  @IsString()
+  @MinLength(6)
+  password!: string;
+
+  @IsOptional()
+  @IsString()
+  timezone?: string;
 }

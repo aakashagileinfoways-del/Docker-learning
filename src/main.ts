@@ -1,12 +1,21 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
+
   const allowedOrigins = (
     process.env.CORS_ORIGINS ||
-    'https://docker-learning-frontend-react.onrender.com'
+    'http://localhost:5173,http://localhost:3000,https://docker-learning-frontend-react.onrender.com'
   )
     .split(',')
     .map((origin) => origin.trim())
@@ -15,6 +24,8 @@ async function bootstrap() {
   app.enableCors({
     origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    credentials: true,
   });
 
   const port = process.env.PORT || 3020;
